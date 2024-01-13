@@ -1,0 +1,140 @@
+MODULE task
+    VAR 
+        processId : 0..(5-1);
+        ticksRemaining : -1..4;
+        isHighPriority : boolean;
+    ASSIGN
+        init(processId) := 0..4;
+        init(ticksRemaining) := 1..4;
+        init(isHighPriority) := FALSE;
+
+MODULE gpu
+    VAR 
+        isBusy : boolean;
+        currentTask : task;
+    
+    ASSIGN
+        init(isBusy) := FALSE;
+
+        next(isBusy) := case
+            currentTask.ticksRemaining > 0 : TRUE;
+            TRUE: FALSE;
+        esac;
+
+MODULE gpuController
+    VAR
+        gpuInst : gpu;
+        task0 : task;
+        task1 : task;
+        task2 : task;
+        task3 : task;
+        task4 : task;
+
+        highPriorityTask : task;
+
+        isHighPriorityTaskInQueue : boolean;
+        
+    ASSIGN
+        init(isHighPriorityTaskInQueue) := FALSE;
+        next(isHighPriorityTaskInQueue) := case
+            -- isHighPriorityTaskInQueue & !gpuInst.isBusy & (gpuInst.currentTask.isHighPriority) : FALSE;
+            -- isHighPriorityTaskInQueue : TRUE;
+            TRUE : { TRUE, FALSE };
+        esac;
+
+        next(highPriorityTask.isHighPriority) := TRUE;
+        next(highPriorityTask.ticksRemaining) := 1..4;
+
+
+        next(gpuInst.currentTask.processId) := case
+            !gpuInst.isBusy & !isHighPriorityTaskInQueue : task0.processId;
+            !gpuInst.isBusy & isHighPriorityTaskInQueue  : highPriorityTask.processId;
+            TRUE : gpuInst.currentTask.processId;
+        esac;
+
+        next(gpuInst.currentTask.ticksRemaining) := case
+            !gpuInst.isBusy & !isHighPriorityTaskInQueue : task0.ticksRemaining;
+            !gpuInst.isBusy & isHighPriorityTaskInQueue  : highPriorityTask.ticksRemaining;
+            gpuInst.currentTask.ticksRemaining > 0 : gpuInst.currentTask.ticksRemaining - 1;
+            TRUE : gpuInst.currentTask.ticksRemaining;
+        esac;
+
+        next(gpuInst.currentTask.isHighPriority) := case
+            !gpuInst.isBusy & !isHighPriorityTaskInQueue : task0.isHighPriority;
+            !gpuInst.isBusy & isHighPriorityTaskInQueue  : highPriorityTask.isHighPriority;
+            TRUE : gpuInst.currentTask.isHighPriority;
+        esac;
+
+
+        next(task0.processId) := case
+            gpuInst.isBusy | isHighPriorityTaskInQueue : task0.processId;
+            TRUE : task1.processId;
+        esac;
+
+        next(task0.ticksRemaining) := case
+            gpuInst.isBusy | isHighPriorityTaskInQueue : task0.ticksRemaining;
+            TRUE : task1.ticksRemaining;
+        esac;
+
+
+        next(task1.processId) := case
+            gpuInst.isBusy | isHighPriorityTaskInQueue : task1.processId;
+            TRUE : task2.processId;
+        esac;
+
+        next(task1.ticksRemaining) := case
+            gpuInst.isBusy | isHighPriorityTaskInQueue : task1.ticksRemaining;
+            TRUE : task2.ticksRemaining;
+        esac;
+
+
+        next(task2.processId) := case
+            gpuInst.isBusy | isHighPriorityTaskInQueue : task2.processId;
+            TRUE : task3.processId;
+        esac;
+
+        next(task2.ticksRemaining) := case
+            gpuInst.isBusy | isHighPriorityTaskInQueue : task2.ticksRemaining;
+            TRUE : task3.ticksRemaining;
+        esac;
+
+
+        next(task3.processId) := case
+            gpuInst.isBusy | isHighPriorityTaskInQueue : task3.processId;
+            TRUE : task4.processId;
+        esac;
+
+        next(task3.ticksRemaining) := case
+            gpuInst.isBusy | isHighPriorityTaskInQueue : task3.ticksRemaining;
+            TRUE : task4.ticksRemaining;
+        esac;
+
+        next(task4.processId) := case
+            gpuInst.isBusy | isHighPriorityTaskInQueue : task4.processId;
+            TRUE : 0..4;
+        esac;
+
+        next(task4.ticksRemaining) := case
+            gpuInst.isBusy | isHighPriorityTaskInQueue : task4.ticksRemaining;
+            TRUE : 1..4;
+        esac;
+
+
+        -- в очереди только неприоритетные задачи
+        next(task0.isHighPriority) := FALSE;
+        next(task1.isHighPriority) := FALSE;
+        next(task2.isHighPriority) := FALSE;
+        next(task3.isHighPriority) := FALSE;
+        next(task4.isHighPriority) := FALSE;
+
+MODULE main
+    VAR 
+        c : gpuController;
+
+    -- Процесс, выставивший заявку, обязательно получает обслуживание
+    -- т.е. если задача есть в очереди, то она обязательно попадет в GPU, а так как она из очереди, то её приоритет будет низким
+    LTLSPEC G ((c.task0.processId = 0) -> F(c.gpuInst.currentTask.processId = 0 & c.gpuInst.currentTask.isHighPriority = FALSE));
+    LTLSPEC G ((c.task1.processId = 1) -> F(c.gpuInst.currentTask.processId = 1 & c.gpuInst.currentTask.isHighPriority = FALSE));
+    LTLSPEC G ((c.task2.processId = 2) -> F(c.gpuInst.currentTask.processId = 2 & c.gpuInst.currentTask.isHighPriority = FALSE));
+    LTLSPEC G ((c.task3.processId = 3) -> F(c.gpuInst.currentTask.processId = 3 & c.gpuInst.currentTask.isHighPriority = FALSE));
+    LTLSPEC G ((c.task4.processId = 4) -> F(c.gpuInst.currentTask.processId = 4 & c.gpuInst.currentTask.isHighPriority = FALSE));
