@@ -138,7 +138,17 @@ MODULE main
     LTLSPEC G ((c.task3.processId = 3 & c.task4.processId = 4) -> F (c.gpuInst.currentTask.processId = 3 & c.gpuInst.currentTask.isHighPriority = FALSE & c.task0.processId = 4));
 
     -- Приоритетный процесс получает обслуживание при первой возможности
-    LTLSPEC G (c.isHighPriorityTaskInQueue = TRUE -> F(c.gpuInst.currentTask.isHighPriority = TRUE));
+    
+    -- Случай, когда задача с высоким приоритетом появляется когда процессор не занят
+    LTLSPEC G ((c.isHighPriorityTaskInQueue = TRUE & !c.gpuInst.isBusy) -> X(c.gpuInst.currentTask.isHighPriority = TRUE));
+
+    -- Случай, когда такая задача появляется во время исполнения другой задачи
+    LTLSPEC G (
+        (c.highPriorityTask.processId=1 & c.isHighPriorityTaskInQueue = TRUE & c.gpuInst.isBusy & c.gpuInst.currentTask.isHighPriority = FALSE) 
+        U 
+        (!c.gpuInst.isBusy)
+    ) -> X(c.gpuInst.currentTask.processId=1 & c.gpuInst.currentTask.isHighPriority=TRUE);
+
     LTLSPEC G (
         (
             c.isHighPriorityTaskInQueue = TRUE
